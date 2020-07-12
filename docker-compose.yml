@@ -1,0 +1,63 @@
+version: '3.7'
+services:
+  nodejs:
+    container_name: nodejs
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # image: nodejs
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DB_USER=$DB_USER
+      - DB_PASs=$DB_PASS
+      - DB_HOST=$DB_HOST
+      - DB_PORT=$DB_PORT
+      - DB_NAME=$DB_NAME
+      - DB_REDIS_HOST=$DB_REDIS_HOST
+      - DB_REDIS_PORT=$DB_REDIS_PORT
+    ports:
+      - '3700:3700'
+    volumes:
+      - .:/usr/src/app
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - backend
+    command: ./wait-for-it.sh mongodb:27017 -- /usr/src/app/node_modules/.bin/nodemon src/index.js
+
+  mongodb:
+    image: mongo:4
+    container_name: mongodb
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=$DB_USER
+      - MONGO_INITDB_ROOT_PASSWORD=$DB_PASS
+    volumes:
+      - ./docker-entrypoint/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - ./dbdata:/data/db
+    ports:
+      - '27017:27017'
+    networks:
+      - backend
+
+  redis:
+    image: 'redis:6'
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    networks:
+      - backend
+
+networks:
+  backend:
+    name: backend
+    driver: bridge
+
+volumes:
+  dbdata:
